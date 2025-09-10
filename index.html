@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JSON Data + QR</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; text-align: center; }
+    pre {
+      text-align: left;
+      background: #f4f4f4;
+      padding: 15px;
+      border-radius: 8px;
+      overflow-x: auto;
+      max-width: 600px;
+      margin: 20px auto;
+    }
+    #qrcode { margin: 20px auto; }
+  </style>
+</head>
+<body>
+  <h2>JSON Data</h2>
+  <pre id="json-output"></pre>
+
+  <h2>QR Code (link to this page)</h2>
+  <div id="qrcode"></div>
+
+  <script>
+    // Hardcoded JSON
+    const jsonData = {
+      "name": "Gateway Test",
+      "type": "demo",
+      "date": new Date().toISOString(),
+      "items": [ "alpha", "beta", "gamma" ]
+    };
+
+    // Show JSON on page
+    document.getElementById("json-output").innerText =
+      JSON.stringify(jsonData, null, 2);
+
+    // Generate QR Code pointing to this page
+    const siteUrl = window.location.href; // current page URL
+    new QRCode(document.getElementById("qrcode"), {
+      text: siteUrl,
+      width: 200,
+      height: 200
+    });
+  </script>
+</body>
+</html>
