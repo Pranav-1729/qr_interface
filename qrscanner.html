@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QR Scanner & JSON Extractor</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      text-align: center;
+    }
+    
+    .scanner-container {
+      margin: 20px 0;
+      border: 2px solid #ddd;
+      border-radius: 10px;
+      padding: 20px;
+    }
+    
+    #reader {
+      width: 100%;
+      max-width: 500px;
+      margin: 0 auto;
+    }
+    
+    .controls {
+      margin: 20px 0;
+    }
+    
+    button {
+      background: #007bff;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      margin: 5px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    
+    button:hover {
+      background: #0056b3;
+    }
+    
+    button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+    
+    .result-container {
+      margin: 20px 0;
+      text-align: left;
+    }
+    
+    .json-data {
+      background: #f8f9fa;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 20px;
+      margin: 10px 0;
+    }
+    
+    .data-item {
+      margin: 10px 0;
+      padding: 10px;
+      background: white;
+      border-left: 4px solid #007bff;
+      border-radius: 4px;
+    }
+    
+    .data-label {
+      font-weight: bold;
+      color: #333;
+    }
+    
+    .data-value {
+      color: #666;
+      margin-top: 5px;
+    }
+    
+    .array-value {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin-top: 5px;
+    }
+    
+    .array-item {
+      background: #e9ecef;
+      padding: 3px 8px;
+      border-radius: 15px;
+      font-size: 14px;
+    }
+    
+    .status {
+      padding: 10px;
+      margin: 10px 0;
+      border-radius: 5px;
+    }
+    
+    .status.success {
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+    
+    .status.error {
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+    
+    .status.info {
+      background: #d1ecf1;
+      color: #0c5460;
+      border: 1px solid #bee5eb;
+    }
+    
+    .hidden {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <h1>QR Code Scanner & JSON Data Extractor</h1>
+  
+  <div class="scanner-container">
+    <h2>Scan QR Code</h2>
+    <div id="reader"></div>
+    <div class="controls">
+      <button id="start-btn" onclick="startScanning()">Start Scanning</button>
+      <button id="stop-btn" onclick="stopScanning()" disabled>Stop Scanning</button>
+    </div>
+  </div>
+  
+  <div id="status"></div>
+  
+  <div id="url-result" class="result-container hidden">
+    <h3>Scanned URL:</h3>
+    <div id="scanned-url"></div>
+  </div>
+  
+  <div id="json-result" class="result-container hidden">
+    <h3>Extracted JSON Data:</h3>
+    <div id="json-display" class="json-data"></div>
+  </div>
+
+  <script>
+    let html5QrcodeScanner = null;
+    let isScanning = false;
+
+    function showStatus(message, type = 'info') {
+      const statusDiv = document.getElementById('status');
+      statusDiv.className = `status ${type}`;
+      statusDiv.textContent = message;
+    }
+
+    function startScanning() {
+      if (isScanning) return;
+      
+      const config = {
+        fps: 10,
+        qrbox: { width: 250, height: 250 },
+        aspectRatio: 1.0
+      };
+
+      html5QrcodeScanner = new Html5Qrcode("reader");
+      
+      // Try to get cameras first
+      Html5Qrcode.getCameras().then(devices => {
+        if (devices && devices.length) {
+          console.log("Available cameras:", devices);
+          const cameraId = devices[0].id;
+          
+          html5QrcodeScanner.start(
+            cameraId,
+            config,
+            onScanSuccess,
+            onScanFailure
+          ).then(() => {
+            isScanning = true;
+            document.getElementById('start-btn').disabled = true;
+            document.getElementById('stop-btn').disabled = false;
+            showStatus('Scanner started. Point camera at QR code.', 'info');
+          }).catch(err => {
+            console.error("Scanner start error:", err);
+            showStatus(`Error starting scanner: ${err}`, 'error');
+            tryFallbackCamera();
+          });
+        } else {
+          showStatus('No cameras found. Trying fallback method...', 'error');
+          tryFallbackCamera();
+        }
+      }).catch(err => {
+        console.error("Camera access error:", err);
+        showStatus(`Error accessing camera: ${err}`, 'error');
+        tryFallbackCamera();
+      });
+    }
+
+    function tryFallbackCamera() {
+      // Try with facingMode instead of specific camera ID
+      const fallbackConfig = {
+        fps: 10,
+        qrbox: { width: 250, height: 250 },
+        facingMode: "environment" // Use back camera
+      };
+
+      html5QrcodeScanner.start(
+        { facingMode: "environment" },
+        fallbackConfig,
+        onScanSuccess,
+        onScanFailure
+      ).then(() => {
+        isScanning = true;
+        document.getElementById('start-btn').disabled = true;
+        document.getElementById('stop-btn').disabled = false;
+        showStatus('Scanner started with fallback method. Point camera at QR code.', 'success');
+      }).catch(err => {
+        console.error("Fallback camera error:", err);
+        // Try user facing camera as last resort
+        tryUserFacingCamera();
+      });
+    }
+
+    function tryUserFacingCamera() {
+      const userConfig = {
+        fps: 10,
+        qrbox: { width: 250, height: 250 },
+        facingMode: "user"
+      };
+
+      html5QrcodeScanner.start(
+        { facingMode: "user" },
+        userConfig,
+        onScanSuccess,
+        onScanFailure
+      ).then(() => {
+        isScanning = true;
+        document.getElementById('start-btn').disabled = true;
+        document.getElementById('stop-btn').disabled = false;
+        showStatus('Scanner started with front camera. Point camera at QR code.', 'success');
+      }).catch(err => {
+        console.error("All camera methods failed:", err);
+        showStatus('Camera access failed. Please check camera permissions and try again.', 'error');
+        document.getElementById('start-btn').disabled = false;
+        document.getElementById('stop-btn').disabled = true;
+      });
+    }
+
+    function stopScanning() {
+      if (!isScanning || !html5QrcodeScanner) return;
+      
+      html5QrcodeScanner.stop().then(() => {
+        html5QrcodeScanner.clear();
+        isScanning = false;
+        document.getElementById('start-btn').disabled = false;
+        document.getElementById('stop-btn').disabled = true;
+        showStatus('Scanner stopped.', 'info');
+      }).catch(err => {
+        showStatus(`Error stopping scanner: ${err}`, 'error');
+      });
+    }
+
+    function onScanSuccess(decodedText) {
+      showStatus('QR Code detected! Fetching data...', 'success');
+      
+      // Display the scanned URL
+      document.getElementById('scanned-url').textContent = decodedText;
+      document.getElementById('url-result').classList.remove('hidden');
+      
+      // Stop scanning after successful scan
+      stopScanning();
+      
+      // Fetch the HTML content from the scanned URL
+      fetchAndExtractJSON(decodedText);
+    }
+
+    function onScanFailure(error) {
+      // Handle scan failure silently - this is called frequently during scanning
+    }
+
+    async function fetchAndExtractJSON(url) {
+      try {
+        showStatus('Fetching HTML content...', 'info');
+        
+        // Use a CORS proxy for cross-origin requests
+        const proxyUrl = 'https://api.allorigins.win/get?url=';
+        const response = await fetch(proxyUrl + encodeURIComponent(url));
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        const htmlContent = data.contents;
+        
+        // Extract JSON from the HTML content
+        extractJSONFromHTML(htmlContent);
+        
+      } catch (error) {
+        showStatus(`Error fetching URL: ${error.message}`, 'error');
+        console.error('Fetch error:', error);
+      }
+    }
+
+    function extractJSONFromHTML(htmlContent) {
+      try {
+        showStatus('Extracting JSON data...', 'info');
+        
+        // Find the JSON object in the script tags
+        const scriptRegex = /const jsonData = ({[\s\S]*?});/;
+        const match = htmlContent.match(scriptRegex);
+        
+        if (match && match[1]) {
+          // Clean up the JSON string and parse it
+          let jsonString = match[1];
+          
+          // Handle the Date object - replace with a string representation
+          jsonString = jsonString.replace(/new Date\(\)\.toISOString\(\)/, `"${new Date().toISOString()}"`);
+          
+          const jsonData = JSON.parse(jsonString);
+          displayJSONData(jsonData);
+          showStatus('JSON data extracted successfully!', 'success');
+          
+        } else {
+          showStatus('No JSON data found in the HTML content.', 'error');
+        }
+        
+      } catch (error) {
+        showStatus(`Error extracting JSON: ${error.message}`, 'error');
+        console.error('JSON extraction error:', error);
+      }
+    }
+
+    function displayJSONData(jsonData) {
+      const displayDiv = document.getElementById('json-display');
+      displayDiv.innerHTML = '';
+      
+      for (const [key, value] of Object.entries(jsonData)) {
+        const itemDiv = document.createElement('div');
+        itemDiv.className = 'data-item';
+        
+        const labelDiv = document.createElement('div');
+        labelDiv.className = 'data-label';
+        labelDiv.textContent = key;
+        
+        const valueDiv = document.createElement('div');
+        valueDiv.className = 'data-value';
+        
+        if (Array.isArray(value)) {
+          const arrayContainer = document.createElement('div');
+          arrayContainer.className = 'array-value';
+          
+          value.forEach(item => {
+            const arrayItem = document.createElement('span');
+            arrayItem.className = 'array-item';
+            arrayItem.textContent = item;
+            arrayContainer.appendChild(arrayItem);
+          });
+          
+          valueDiv.appendChild(arrayContainer);
+        } else {
+          valueDiv.textContent = value;
+        }
+        
+        itemDiv.appendChild(labelDiv);
+        itemDiv.appendChild(valueDiv);
+        displayDiv.appendChild(itemDiv);
+      }
+      
+      document.getElementById('json-result').classList.remove('hidden');
+    }
+
+    // Initialize on page load
+    window.onload = function() {
+      showStatus('Ready to scan QR codes. Click "Start Scanning" to begin.', 'info');
+    };
+  </script>
+</body>
+</html>
