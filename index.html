@@ -8,7 +8,7 @@
   <style>
     body { font-family: Arial, sans-serif; margin: 20px; text-align: center; }
     pre {
-      text-align: center;
+      text-align: left;
       background: #f4f4f4;
       padding: 15px;
       border-radius: 8px;
@@ -16,16 +16,14 @@
       max-width: 600px;
       margin: 20px auto;
     }
-    #qrcode { margin: 20px auto; }
+    #qrcode { margin: 20px auto; display: flex; justify-content: center; }
   </style>
 </head>
 <body>
   <h2>JSON Data</h2>
   <pre id="json-output"></pre>
-
   <h2>QR Code (link to this page)</h2>
   <div id="qrcode"></div>
-
   <script>
     // Hardcoded JSON
     const jsonData = {
@@ -38,11 +36,9 @@
       "Manufactured": "28/8/25",
       "Expires": "28/8/26"
     };
-
     // Show JSON on page
     document.getElementById("json-output").innerText =
       JSON.stringify(jsonData, null, 2);
-
     // Generate QR Code pointing to this page
     const siteUrl = window.location.href; // current page URL
     new QRCode(document.getElementById("qrcode"), {
